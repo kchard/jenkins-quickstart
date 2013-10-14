@@ -109,9 +109,9 @@ OpenJDK Client VM (build 23.7-b01, mixed mode, sharing)
 
 <p>While the steps described above are great to fire up Jenkins and start exploring, when deploying Jenkins for use in production this simple approach has several issues. First, to ensure high availability of our CI server we need a way to automate the management of the Jenkins process. Second, we need a way to manage logging. Finally, it is often useful to provide environment variables for customizing how Jenkins is run. By configuring Jenkins as a managed service with <code>runit</code>, we can take care of all of these needs.</p>
 
-<p>If you are still acting as the <code>jenkins</code> user, revert back to <code>root</code> so that we can configure `<code>runit</code> to monitor Jenkins.</p>
+<p>If you are still acting as the <code>jenkins</code> user, revert back to <code>root</code> so that we can configure <code>runit</code> to monitor Jenkins.</p>
 
-<p>First create a staging directory by executing the following:</p>
+<p>First create a staging directory for runit configurations by executing the following command :</p>
 
 <pre><code># mkdir -p /etc/runit/jenkins
 </code></pre>
@@ -136,9 +136,9 @@ exec chpst -u jenkins -e /etc/runit/jenkins/env java -jar jenkins.war
 <pre><code># mkdir /etc/runit/jenkins/env
 </code></pre>
 
-<p>We would like to explicitly define the <code>JENKINS_HOME</code> environment variable to control where Jenkins stores its data. To do this we need to create a file with the name of the environment variable in the <code>env</code> direcotry containing the value we would like it to be set to.</p>
+<p>We would like to explicitly define the <code>JENKINS_HOME</code> environment variable to control where Jenkins stores its data. To do this we need to create a file with the name of the environment variable in the <code>env</code> directory containing the value we would like it to set it to.</p>
 
-<p>Set a value for the <code>JENKINS_HOME</code> variable by executing the following command:</p>
+<p>Define a value for the <code>JENKINS_HOME</code> variable by executing the following command:</p>
 
 <pre><code># echo /opt/jenkins/.jenkins &gt; /etc/runit/jenkins/env/JENKINS_HOME
 </code></pre>
@@ -175,7 +175,7 @@ exec chpst -u jenkins svlogd -tt /opt/jenkins/logs
 <pre><code># ln -s /etc/runit/jenkins /etc/service/jenkins
 </code></pre>
 
-<p>If everything worked, you should see information being written to the logs and Jenkins should be available on port 8080. </p>
+<p>If everything worked, you should see information being written to the logs and Jenkins should be available on port 8080. Please take some time to review the basics of <code>runit</code> if you are not clear on what we just setup. </p>
 
 <h3>
 <a name="continuous-integration-go" class="anchor" href="#continuous-integration-go"><span class="octicon octicon-link"></span></a>Continuous Integration GO!!!</h3>
