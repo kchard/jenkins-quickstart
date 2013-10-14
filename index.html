@@ -34,13 +34,164 @@
         <h3>
 <a name="abstract" class="anchor" href="#abstract"><span class="octicon octicon-link"></span></a>Abstract</h3>
 
-<p>The purpose of this tutorial is to get you up and running with Jenkins as quickly as possible.</p>
+<p>The purpose of this tutorial is to get you up and running with Jenkins as quickly as possible. Jenkins is an extendable open source continuous integration server. In this tutorial we will setup a stock Jenkins installation using runit for service management.</p>
 
 <h3>
 <a name="what-you-will-learn" class="anchor" href="#what-you-will-learn"><span class="octicon octicon-link"></span></a>What You Will Learn</h3>
 
-<h3>
+<ol>
+<li>How to install Jenkins</li>
+<li>How to setup runit to manage Jenkins</li>
+</ol><h3>
 <a name="0-prerequisites" class="anchor" href="#0-prerequisites"><span class="octicon octicon-link"></span></a>0. Prerequisites</h3>
+
+<p>Make sure that you java Java installed on your system. To verify that Java is installed execute the command:</p>
+
+<pre><code># java -version
+</code></pre>
+
+<p>You should see some output that looks something like this:</p>
+
+<pre><code>java version "1.7.0_25"
+OpenJDK Runtime Environment (IcedTea 2.3.10) (7u25-2.3.10-1~deb7u1)
+OpenJDK Client VM (build 23.7-b01, mixed mode, sharing)
+</code></pre>
+
+<p>If you see an error, consult the documentation on how to install Java for your platform.</p>
+
+<p>Additionally, you will need <code>runit</code> installed. If you are unfamiliar with <code>runit</code>, you may want to read the following tutorial before continuing. </p>
+
+<p><a href="http://kchard.github.io/runit-quickstart/">Getting started with the runit - a UNIX init scheme with service supervision</a></p>
+
+<h3>
+<a name="1-installing-jenkins" class="anchor" href="#1-installing-jenkins"><span class="octicon octicon-link"></span></a>1. Installing Jenkins</h3>
+
+<p>The first thing that we need to do is create a user to run Jenkins with. Add a new user named <code>jenkins</code> using the method provided by your Linux distrobution. For example, on Debain you can add the user with the the following command:</p>
+
+<pre><code># adduser jenkins
+</code></pre>
+
+<p>Next, let's create a directory to install Jenkins in and change its ownershipt to the <code>jenkins</code> user. You can install Jenkins in any location you wish. I like to install it in the <code>/opt</code> directory. </p>
+
+<pre><code># mkdir /opt/jenkins
+# chown jenkins:jenkins /opt/jenkins
+</code></pre>
+
+<p>The only artifact that we need to install jenkins is the latest version of <code>jenkins.war</code> from the <a href="http://jenkins-ci.org/">Jenkins CI Web Site</a>. </p>
+
+<p>Change to the <code>jenkins</code> user, navigate to the Jenkins installation directory, and download <code>jenkins.war</code>.</p>
+
+<pre><code># su jenkins
+# cd /opt/jenkins
+# wget http://mirrors.jenkins-ci.org/war/latest/jenkins.war
+</code></pre>
+
+<p>Jenkins is provided as an executable war with an embedded web server. There is no need to deploy the war in a servlet container such as Tomcat. </p>
+
+<p>Start Jenkins by running the following command:</p>
+
+<pre><code># java -jar jenkins.war
+</code></pre>
+
+<p>You should see output displaying the progress of Jenkins starting up. Once you see a message like the one shown below, Jenkins will be available.</p>
+
+<pre><code>INFO: Jenkins is fully up and running
+</code></pre>
+
+<p>When you started Jenkins, the war file was expanded to the <code>JENKINS_HOME</code> directory. Because we did not define this environment variable, Jenkins defaults to <code>~/.jenkins</code>. In our case this is would be <code>/home/jenkins/.jenkins</code>. This directory will be used to store all of the data needed by Jenkins. </p>
+
+<p>Open a web browser and navigate to port 8080 on your host, you should be greeted by the Jenkins home page. Take a few minutes to explore the application.</p>
+
+<p>When you are done exploring Jenkins, go ahead and shut it down by entering <code>Ctrl-c</code> in the terminal. </p>
+
+<h3>
+<a name="2-configuring-runit-to-manage-jenkins" class="anchor" href="#2-configuring-runit-to-manage-jenkins"><span class="octicon octicon-link"></span></a>2. Configuring runit to manage Jenkins</h3>
+
+<p>While the steps described above are great to fire up Jenkins and start exploring, when deploying Jenkins for use in production this simple approach has several issues. First, to ensure high availability of our CI server we need a way to automate the management of the Jenkins process. Second, we need a way to manage logging. Finally, it is often useful to provide environment variables for customizing how Jenkins is run. By configuring Jenkins as a managed service with <code>runit</code>, we can take care of all of these needs.</p>
+
+<p>If you are still acting as the <code>jenkins</code> user, revert back to <code>root</code> so that we can configure `<code>runit</code> to monitor Jenkins.</p>
+
+<p>First create a staging directory by executing the following:</p>
+
+<pre><code># mkdir -p /etc/runit/jenkins
+</code></pre>
+
+<p>Create a script named <code>run</code> in the new directory with the following contents:</p>
+
+<pre><code>#!/bin/sh -e
+cd /opt/jenkins
+exec 2&gt;&amp;1
+exec chpst -u jenkins -e /etc/runit/jenkins/env java -jar jenkins.war
+</code></pre>
+
+<p>Now make the script executable.</p>
+
+<pre><code># chmod +x /etc/runit/jenkins/run
+</code></pre>
+
+<p>Notice the <code>-e /etc/runit/jenkins/env</code> argument we are passing to <code>chpst</code>. We can use this directory to configure environment variables that will be set when executing our process.</p>
+
+<p>Go ahead and create the <code>env</code> directory.</p>
+
+<pre><code># mkdir /etc/runit/jenkins/env
+</code></pre>
+
+<p>We would like to explicitly define the <code>JENKINS_HOME</code> environment variable to control where Jenkins stores its data. To do this we need to create a file with the name of the environment variable in the <code>env</code> direcotry containing the value we would like it to be set to.</p>
+
+<p>Set a value for the <code>JENKINS_HOME</code> variable by executing the following command:</p>
+
+<pre><code># echo /opt/jenkins/.jenkins &gt; /etc/runit/jenkins/env/JENKINS_HOME
+</code></pre>
+
+<p>This will instruct Jenkins to use <code>/opt/jenkins/.jenkins</code> as the home directory instead of the default. Before we continue, let's cleanup the files that Jenkins created in the default home location.</p>
+
+<pre><code># rm -Rf /home/jenkins/.jenkins
+</code></pre>
+
+<p>The only thing left to do is configure logging for the service. First create the logging configuration by making a <code>log</code> sub directory under <code>/ect/runit/jenkins</code>.</p>
+
+<pre><code># mkdir /etc/runit/jenkins/log
+</code></pre>
+
+<p>Next, create a script named <code>run</code> in the <code>log</code> directory with the following contents:</p>
+
+<pre><code>#!/bin/sh
+exec chpst -u jenkins svlogd -tt /opt/jenkins/logs
+</code></pre>
+
+<p>Make the script executable.</p>
+
+<pre><code># chmod +x /etc/runit/jenkins/log/run
+</code></pre>
+
+<p>The <code>/opt/jenkins/logs</code> directory does not exit, so create it and change its ownership to the <code>jenkins</code> user.</p>
+
+<pre><code># mkdir /opt/jenkins/logs
+# chown jenkins:jenkins /opt/jenkins/logs
+</code></pre>
+
+<p>That is all of the configuration that we need to address process management, logging, and defining environment variables. Go ahead and deploy the service by creating a symbolic link from the <code>/etc/service/jenkins</code> directory to our staging directory.</p>
+
+<pre><code># ln -s /etc/runit/jenkins /etc/service/jenkins
+</code></pre>
+
+<p>If everything worked, you should see information being written to the logs and Jenkins should be available on port 8080. </p>
+
+<h3>
+<a name="continuous-integration-go" class="anchor" href="#continuous-integration-go"><span class="octicon octicon-link"></span></a>Continuous Integration GO!!!</h3>
+
+<p>At this point you have everything you need to setup a monitored Jenkins server with logging. Your next step should be to read the Jenkins documentation to configure Jenkins to suit your needs. A good place to start is the "Use Jenkins" wiki.</p>
+
+<p><a href="https://wiki.jenkins-ci.org/display/JENKINS/Use+Jenkins">https://wiki.jenkins-ci.org/display/JENKINS/Use+Jenkins</a></p>
+
+<h3>
+<a name="contact-me" class="anchor" href="#contact-me"><span class="octicon octicon-link"></span></a>Contact Me</h3>
+
+<p>If you have any questions or would like further clarification, please feel free to shoot me an email. I would be glad to help. </p>
+
+<p>Kevin</p>
+
+<p><a href="mailto:krchard@gmail.com">krchard@gmail.com</a></p>
       </section>
     </div>
 
