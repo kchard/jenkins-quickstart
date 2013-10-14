@@ -1,0 +1,2 @@
+#!/bin/sh
+exec chpst -u jenkins svlogd -tt /opt/jenkins/logs
