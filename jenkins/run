@@ -1,0 +1,5 @@
+#!/bin/sh -e
+cd /opt/jenkins
+exec 2>&1
+exec chpst -u jenkins -e /etc/runit/jenkins/env java -jar jenkins.war
+#exec chpst -u jenkins -e /etc/runit/jenkins/env java -jar jenkins.war --httpPort=-1 --httpsPort=8443 
